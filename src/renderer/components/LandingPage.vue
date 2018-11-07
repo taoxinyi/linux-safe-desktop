@@ -6,6 +6,10 @@
         <span class="title">
           Welcome to your new project!
         </span>
+        <button @click="goBackDir">back</button>
+        <div>
+          {{currentDir.getPathStr()}}
+        </div>
         <File v-for="file in filesInSafe" :file="file" :key="file.relativeDir" @doubleClick="doubleClickHandler" >
         </File>
       </div>
@@ -32,7 +36,18 @@
 
 <script>
 import File from "./File/File";
+import Path from "../path/path.js";
 const fs = require("fs");
+var spawn = require("child_process").spawn;
+var exec = require("child_process").exec;
+
+var openFile = function(path) {
+  exec(`xdg-mime query filetype ${path}`, (error, fileType, stderr) => {
+    exec(`xdg-mime query default ${fileType}`, (error, app, stderr) => {
+      spawn(`${app.slice(0, -9)}`, [path]);
+    });
+  });
+};
 var walk = function(dir, done) {
   var results = [];
   fs.readdir(dir, function(err, list) {
@@ -62,18 +77,24 @@ export default {
   data() {
     return {
       filesInSafe: [],
-      safeDir:"/home/xytao/safe"
+      currentDir: new Path(["home", "xytao", "safe"]),
+      safeDir: "/home/xytao/safe/"
     };
   },
 
   methods: {
+    goBackDir() {
+      this.currentDir = this.currentDir.getParentDir();
+      this.filesInSafe = [];
+      this.readFromDir(this.currentDir.getPathStr());
+    },
     readFromDir(absoluteDir) {
       fs.readdir(absoluteDir, (eff, files) => {
         files.forEach(async filename => {
-          let fileAbsolute = absoluteDir + "/" + filename;
+          let fileAbsolute = absoluteDir + filename;
           fs.stat(fileAbsolute, (err, stat) => {
             this.filesInSafe.push({
-            safeDir: this.safeDir,
+              safeDir: this.safeDir,
               absoluteDir: fileAbsolute,
               name: filename,
               stat: stat,
@@ -86,8 +107,10 @@ export default {
     doubleClickHandler(file) {
       if (file.isDirectory) {
         this.filesInSafe = [];
-        let absoluteDir = file.absoluteDir;
-        this.readFromDir(absoluteDir);
+        this.currentDir.gotoDir(file.name);
+        this.readFromDir(file.absoluteDir + "/");
+      } else {
+        openFile(file.absoluteDir);
       }
     },
     open(link) {
@@ -95,21 +118,7 @@ export default {
     }
   },
   created() {
-    let safeBase = "/home/xytao/safe";
-    fs.readdir(safeBase, (err, files) => {
-      files.forEach(async filename => {
-        let fileAbsolute = safeBase + "/" + filename;
-        fs.stat(fileAbsolute, (err, stat) => {
-          this.filesInSafe.push({
-            safeDir: this.safeDir,
-            absoluteDir: fileAbsolute,
-            name: filename,
-            stat: stat,
-            isDirectory: stat.isDirectory()
-          });
-        });
-      });
-    });
+    this.readFromDir(this.safeDir);
   }
 };
 </script>
