@@ -1,35 +1,29 @@
 <template>
-  <div id="wrapper">
-    <img id="logo" src="~@/assets/logo.png" alt="electron-vue">
+  <div >
     <main>
-      <div class="left-side">
-        <span class="title">
-          Welcome to your new project!
-        </span>
-        <button @click="goBackDir">back</button>
+      <div>
+        <div class="title">
+          Safe Box
+        </div>
+        <div style="display:flex;align-items:center;">
+           <font-awesome-icon icon="arrow-up" fixed-width @click="goBackDir" ></font-awesome-icon>
+
         <div>
           {{currentDir.getPathStr()}}
+
         </div>
-        <File v-for="file in filesInSafe" :file="file" :key="file.relativeDir" @doubleClick="doubleClickHandler" >
-        </File>
+        </div>
+       
+      <div style="display:flex;flex-wrap:wrap">
+        <div v-for="file in filesInSafe" :key="file.absoluteDir" :class="{'file-selected': isActive(file.absoluteDir)}" >
+          <File :file="file" @doubleClick="doubleClickHandler" @singleClick="singleClickHandler">
+          </File>
+        </div>
+          
+      </div>
+        
       </div>
 
-      <div class="right-side">
-        <div class="doc">
-          <div class="title">Getting Started</div>
-          <p>
-            electron-vue comes packed with detailed documentation that covers everything from
-            internal configurations, using the project structure, building your application,
-            and so much more.
-          </p>
-          <button @click="open('https://simulatedgreg.gitbooks.io/electron-vue/content/')">Read the Docs</button><br><br>
-        </div>
-        <div class="doc">
-          <div class="title alt">Other Documentation</div>
-          <button class="alt" @click="open('https://electron.atom.io/docs/')">Electron</button>
-          <button class="alt" @click="open('https://vuejs.org/v2/guide/')">Vue.js</button>
-        </div>
-      </div>
     </main>
   </div>
 </template>
@@ -44,7 +38,7 @@ var exec = require("child_process").exec;
 var openFile = function(path) {
   exec(`xdg-mime query filetype ${path}`, (error, fileType, stderr) => {
     exec(`xdg-mime query default ${fileType}`, (error, app, stderr) => {
-      spawn(`${app.slice(0, -9)}`, [path]);
+      if (app.endsWith(".desktop\n")) spawn(`${app.slice(0, -9)}`, [path]);
     });
   });
 };
@@ -78,15 +72,24 @@ export default {
     return {
       filesInSafe: [],
       currentDir: new Path(["home", "xytao", "safe"]),
-      safeDir: "/home/xytao/safe/"
+      safeDir: "/home/xytao/safe/",
+      currentSelection:""
     };
   },
+  computed:{
+    
 
+  },
   methods: {
+   isActive(f){
+      return this.currentSelection == f
+    },
     goBackDir() {
-      this.currentDir = this.currentDir.getParentDir();
-      this.filesInSafe = [];
-      this.readFromDir(this.currentDir.getPathStr());
+      if (this.currentDir.getPathStr() !== this.safeDir) {
+        this.currentDir = this.currentDir.getParentDir();
+        this.filesInSafe = [];
+        this.readFromDir(this.currentDir.getPathStr());
+      }
     },
     readFromDir(absoluteDir) {
       fs.readdir(absoluteDir, (eff, files) => {
@@ -103,6 +106,11 @@ export default {
           });
         });
       });
+    },
+     singleClickHandler(file){
+        this.currentSelection=file.absoluteDir
+        console.log(this.currentSelection)
+
     },
     doubleClickHandler(file) {
       if (file.isDirectory) {
@@ -130,6 +138,7 @@ export default {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  user-select: none;
 }
 
 body {
@@ -153,15 +162,6 @@ body {
   width: 420px;
 }
 
-main {
-  display: flex;
-  justify-content: space-between;
-}
-
-main > div {
-  flex-basis: 50%;
-}
-
 .left-side {
   display: flex;
   flex-direction: column;
@@ -178,6 +178,7 @@ main > div {
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 6px;
+  text-align: center;
 }
 
 .title.alt {
@@ -207,5 +208,14 @@ main > div {
 .doc button.alt {
   color: #42b983;
   background-color: transparent;
+}
+
+.fa-fw:hover {
+  color: gray;
+}
+</style>
+<style scoped>
+.file-selected{
+  background:#f7f7f7
 }
 </style>
