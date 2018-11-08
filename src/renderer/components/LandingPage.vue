@@ -29,11 +29,60 @@
 <script>
 import File from "./File/File";
 import Path from "../path/path.js";
-
+import Cipher from "../cipher/cipher.js"
 const fs = require("fs");
 var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
+var crypto = require("crypto");
+/*
+encrypt("/home/xytao/safe/3.jpg","/home/xytao/safe/output12","1234445",function(){
+  decrypt("/home/xytao/safe/output12","/home/xytao/safe/6.jpg","1234445",function(){
+    console.log("decryptfinished")
+    console.log("decryptfinished")
+  })
+})*/
+const cipher = new Cipher()
+cipher.encrypt("/home/xytao/safe/3.jpg","/home/xytao/safe/output12","1234445");
+cipher
+.on('encrypt-new-chunk',function(per){
+  console.log(per)
+})
+.on('decrypt-new-chunk',function(per){
+  console.log(per)
+})
+.on('decrypt-finished',function(per){
+  console.log("def111")
+})
+.on("encrypt-finished",function(){
+  console.log('fin1111')
+  cipher.decrypt("/home/xytao/safe/output12","/home/xytao/safe/666.jpg","1234445");
+})
 
+//decrypt("/home/xytao/safe/output","/home/xytao/safe/4.jpg","abcd")
+
+/*
+var infile = fs.createReadStream("/home/xytao/safe/fuck.txt");
+var outfile = fs.createWriteStream("/home/xytao/safe/output.txt");
+var encrypt = crypto.createCipher("aes192", "behdad");
+var size = fs.statSync("/home/xytao/safe/fuck.txt").size;
+console.log(size);
+infile
+  .on("data", function(data) {
+    console.log(data.length);
+    var percentage = parseInt(infile.bytesRead) / parseInt(size);
+    console.log(percentage);
+    var encrypted = encrypt.update(data);
+    console.log(encrypted);
+    if (encrypted) {
+      console.log(encrypted);
+      outfile.write(encrypted);
+    }
+  })
+  .on("end", function() {
+    outfile.write(encrypt.final());
+    outfile.close();
+  });
+*/
 var openFile = function(path) {
   exec(`xdg-mime query filetype ${path}`, (error, fileType, stderr) => {
     exec(`xdg-mime query default ${fileType}`, (error, app, stderr) => {
@@ -91,7 +140,7 @@ export default {
           if (err) {
           } else if (stat.isFile()) {
             openFile(this.currentDirInBar);
-            this.currentDirInBar=this.currentDir.getPathStr()
+            this.currentDirInBar = this.currentDir.getPathStr();
           } else if (stat.isDirectory()) {
             this.filesInSafe = [];
             this.currentDir.gotoAbsoluteDir(this.currentDirInBar);
@@ -248,8 +297,8 @@ body {
 .file-selected {
   background: #f7f7f7;
 }
-.el-input{
-  margin:10px;
-  font-size:16px;
+.el-input {
+  margin: 10px;
+  font-size: 16px;
 }
 </style>
