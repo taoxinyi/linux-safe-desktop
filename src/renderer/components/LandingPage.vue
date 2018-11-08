@@ -6,22 +6,31 @@
         <div style="display:flex;align-items:center;margin:0 10px">
            <font-awesome-icon icon="arrow-up" fixed-width @click="goBackDir" ></font-awesome-icon>
             <el-input v-model="currentDirInBar" :value="currentDirStr" placeholder="请输入内容" @keyup.enter.native="pathEnterHandler"></el-input>
-
-
-        <div>
-
         </div>
 
-        </div>
-
-      <div style="display:flex;flex-wrap:wrap">
+      <div style="display:flex;flex-wrap:wrap" >
         <div v-for="file in filesInSafe" :key="file.absoluteDir" :class="{'file-selected': isActive(file.absoluteDir)}" >
-          <File :file="file" @doubleClick="doubleClickHandler" @singleClick="singleClickHandler" >
+          <File :file="file" @doubleClick="doubleClickHandler" @singleClick="singleClickHandler" v-contextmenu:contextmenu>
           </File>
         </div>
-          
+            <v-contextmenu ref="contextmenu" @contextmenu="handleContextmenu"> 
+            <v-contextmenu-item @click="decryptFileRightClick">Decrypt&Open</v-contextmenu-item>
+            <v-contextmenu-item @click="openFileRightClick">Open</v-contextmenu-item>
+            <v-contextmenu-item @click="encryptFileRightClick">Encrypt</v-contextmenu-item>
+          </v-contextmenu>
       </div>
-        
+       <el-dialog
+        title="Decrypting file"
+        :visible.sync="centerDialogVisible"
+        width="500px"
+        center>
+    <div style="text-align:center">
+      <el-input v-model="currentPassword" :placeholder="currentOpenPath" @keyup.enter.native="passwordEnterHandler"></el-input>
+     <el-progress :text-inside="true" :stroke-width="25" :percentage=decryptionProgress ></el-progress>
+
+    </div>
+  
+</el-dialog> 
       </div>
 
 </template>
@@ -29,67 +38,13 @@
 <script>
 import File from "./File/File";
 import Path from "../path/path.js";
-import Cipher from "../cipher/cipher.js"
+import Cipher from "../cipher/cipher.js";
 const fs = require("fs");
 var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
 var crypto = require("crypto");
-/*
-encrypt("/home/xytao/safe/3.jpg","/home/xytao/safe/output12","1234445",function(){
-  decrypt("/home/xytao/safe/output12","/home/xytao/safe/6.jpg","1234445",function(){
-    console.log("decryptfinished")
-    console.log("decryptfinished")
-  })
-})*/
-const cipher = new Cipher()
-cipher.encrypt("/home/xytao/safe/3.jpg","/home/xytao/safe/output12","1234445");
-cipher
-.on('encrypt-new-chunk',function(per){
-  console.log(per)
-})
-.on('decrypt-new-chunk',function(per){
-  console.log(per)
-})
-.on('decrypt-finished',function(per){
-  console.log("def111")
-})
-.on("encrypt-finished",function(){
-  console.log('fin1111')
-  cipher.decrypt("/home/xytao/safe/output12","/home/xytao/safe/666.jpg","1234445");
-})
 
-//decrypt("/home/xytao/safe/output","/home/xytao/safe/4.jpg","abcd")
-
-/*
-var infile = fs.createReadStream("/home/xytao/safe/fuck.txt");
-var outfile = fs.createWriteStream("/home/xytao/safe/output.txt");
-var encrypt = crypto.createCipher("aes192", "behdad");
-var size = fs.statSync("/home/xytao/safe/fuck.txt").size;
-console.log(size);
-infile
-  .on("data", function(data) {
-    console.log(data.length);
-    var percentage = parseInt(infile.bytesRead) / parseInt(size);
-    console.log(percentage);
-    var encrypted = encrypt.update(data);
-    console.log(encrypted);
-    if (encrypted) {
-      console.log(encrypted);
-      outfile.write(encrypted);
-    }
-  })
-  .on("end", function() {
-    outfile.write(encrypt.final());
-    outfile.close();
-  });
-*/
-var openFile = function(path) {
-  exec(`xdg-mime query filetype ${path}`, (error, fileType, stderr) => {
-    exec(`xdg-mime query default ${fileType}`, (error, app, stderr) => {
-      if (app.endsWith(".desktop\n")) spawn(`${app.slice(0, -9)}`, [path]);
-    });
-  });
-};
+var openFile = function(path) {};
 var walk = function(dir, done) {
   var results = [];
   fs.readdir(dir, function(err, list) {
@@ -123,7 +78,12 @@ export default {
       currentDir: new Path(["home", "xytao", "safe"]),
       safeDir: "/home/xytao/safe/",
       currentSelection: "",
-      currentDirInBar: ""
+      currentDirInBar: "",
+      centerDialogVisible: false,
+      decryptionProgress: 0,
+      rightClickFile: undefined,
+      currentOpenPath: undefined,
+      currentPassword: undefined
     };
   },
 
@@ -133,13 +93,94 @@ export default {
     }
   },
   methods: {
+    encryptFileRightClick() {
+      const cipher = new Cipher();
+      cipher.encrypt(
+        this.rightClickFile.absoluteDir,
+        "/home/xytao/safe/eee",
+        "12345"
+      );
+    },
+    passwordEnterHandler() {
+      this.openFile(this.currentOpenPath);
+    },
+    decryptFileRightClick() {
+      this.openFile(this.rightClickFile.absoluteDir);
+    },
+    openFileRightClick() {
+      this.openFile(this.rightClickFile.absoluteDir, false);
+    },
+    handleContextmenu(vnode) {
+      this.rightClickFile = vnode.componentOptions.propsData.file;
+    },
+    openFile(path, isDecrypted = true) {
+      if (!isDecrypted)
+        exec(`xdg-mime query filetype ${path}`, (error, fileType, stderr) => {
+          exec(`xdg-mime query default ${fileType}`, (error, app, stderr) => {
+            if (app.endsWith(".desktop\n"))
+              spawn(`${app.slice(0, -9)}`, [path]).on("exit", function(
+                code,
+                signal
+              ) {
+                console.log(code, signal);
+              });
+          });
+        });
+      else {
+        let that = this;
+        const cipher = new Cipher();
+        let path_array = path.split("/");
+        path_array[path_array.length - 1] =
+          "decrypted_" + path_array[path_array.length - 1];
+
+        let decryped_path = path_array.join("/");
+        cipher.decrypt(path, decryped_path, this.currentPassword);
+        cipher
+          .on("decrypt-new-chunk", function(per) {
+            that.decryptionProgress = parseInt(per * 100);
+          })
+          .on("decrypt-finished", function() {
+            let old_stats = fs.statSync(decryped_path);
+            exec(
+              `xdg-mime query filetype ${decryped_path}`,
+              (error, fileType, stderr) => {
+                exec(
+                  `xdg-mime query default ${fileType}`,
+                  (error, app, stderr) => {
+                    if (app.endsWith(".desktop\n"))
+                      spawn(`${app.slice(0, -9)}`, [decryped_path]).on(
+                        "exit",
+                        function(code, signal) {
+                          let new_stats = fs.statSync(decryped_path);
+                          if (new_stats.mtimeMs != old_stats.mtimeMs) {
+                            //file modified
+                            const cipher = new Cipher();
+                            cipher.encrypt(decryped_path, path, "12345");
+                            cipher
+                              .on("encrypt-new-chunk", function(per) {
+                                //console.log(per)
+                              })
+                              .on("encrypt-finished", function() {
+                                console.log("fins");
+                                fs.unlink(decryped_path);
+                              });
+                          } else fs.unlink(decryped_path);
+                        }
+                      );
+                  }
+                );
+              }
+            );
+          });
+      }
+    },
     pathEnterHandler() {
       console.log(this.currentDirInBar);
       if (this.currentDirInBar.startsWith("/"))
         fs.stat(this.currentDirInBar, (err, stat) => {
           if (err) {
           } else if (stat.isFile()) {
-            openFile(this.currentDirInBar);
+            this.openFile(this.currentDirInBar);
             this.currentDirInBar = this.currentDir.getPathStr();
           } else if (stat.isDirectory()) {
             this.filesInSafe = [];
@@ -189,7 +230,10 @@ export default {
         this.currentDir.gotoDir(file.name);
         this.readFromDir(file.absoluteDir + "/");
       } else {
-        openFile(file.absoluteDir);
+        this.currentPassword = undefined;
+        this.currentOpenPath = file.absoluteDir;
+        this.centerDialogVisible = true;
+        this.decryptionProgress = 0;
       }
     },
     open(link) {
@@ -292,13 +336,16 @@ body {
 .fa-fw:hover {
   color: gray;
 }
+.el-progress-bar__innerText {
+  font-size: 20px;
+}
 </style>
 <style scoped>
 .file-selected {
   background: #f7f7f7;
 }
 .el-input {
-  margin: 10px;
+  margin: 10px 0;
   font-size: 16px;
 }
 </style>

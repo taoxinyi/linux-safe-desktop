@@ -13,9 +13,13 @@ import {} from '@fortawesome/free-regular-svg-icons'
 import {faFile} from '@fortawesome/pro-light-svg-icons'
 
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome'
+import contentmenu from 'v-contextmenu'
+import 'v-contextmenu/dist/index.css'
+
 library.add(faFolder,faFile,faArrowUp)
 Vue.component('font-awesome-icon', FontAwesomeIcon)
 Vue.use(ElementUI);
+Vue.use(contentmenu)
 
 if (!process.env.IS_WEB) Vue.use(require('vue-electron'))
 Vue.http = Vue.prototype.$http = axios
