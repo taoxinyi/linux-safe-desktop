@@ -1,22 +1,22 @@
 <template>
-  <div >
-    <main>
-      <div>
-        <div class="title">
+      <div @click="away" style="height:100%">
+        <div class="title" >
           Safe Box
         </div>
-        <div style="display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;margin:0 10px">
            <font-awesome-icon icon="arrow-up" fixed-width @click="goBackDir" ></font-awesome-icon>
+            <el-input v-model="currentDirInBar" :value="currentDirStr" placeholder="请输入内容" @keyup.enter.native="pathEnterHandler"></el-input>
+
 
         <div>
-          {{currentDir.getPathStr()}}
 
         </div>
+
         </div>
-       
+
       <div style="display:flex;flex-wrap:wrap">
         <div v-for="file in filesInSafe" :key="file.absoluteDir" :class="{'file-selected': isActive(file.absoluteDir)}" >
-          <File :file="file" @doubleClick="doubleClickHandler" @singleClick="singleClickHandler">
+          <File :file="file" @doubleClick="doubleClickHandler" @singleClick="singleClickHandler" >
           </File>
         </div>
           
@@ -24,13 +24,12 @@
         
       </div>
 
-    </main>
-  </div>
 </template>
 
 <script>
 import File from "./File/File";
 import Path from "../path/path.js";
+
 const fs = require("fs");
 var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
@@ -68,21 +67,46 @@ var walk = function(dir, done) {
 export default {
   name: "landing-page",
   components: { File },
+
   data() {
     return {
       filesInSafe: [],
       currentDir: new Path(["home", "xytao", "safe"]),
       safeDir: "/home/xytao/safe/",
-      currentSelection:""
+      currentSelection: "",
+      currentDirInBar: ""
     };
   },
-  computed:{
-    
 
+  computed: {
+    currentDirStr() {
+      this.currentDirInBar = this.currentDir.getPathStr();
+    }
   },
   methods: {
-   isActive(f){
-      return this.currentSelection == f
+    pathEnterHandler() {
+      console.log(this.currentDirInBar);
+      if (this.currentDirInBar.startsWith("/"))
+        fs.stat(this.currentDirInBar, (err, stat) => {
+          if (err) {
+          } else if (stat.isFile()) {
+            openFile(this.currentDirInBar);
+            this.currentDirInBar=this.currentDir.getPathStr()
+          } else if (stat.isDirectory()) {
+            this.filesInSafe = [];
+            this.currentDir.gotoAbsoluteDir(this.currentDirInBar);
+            this.readFromDir(
+              this.currentDirInBar +
+                (this.currentDirInBar.endsWith("/") ? "" : "/")
+            );
+          }
+        });
+    },
+    away: function() {
+      this.currentSelection = "";
+    },
+    isActive(f) {
+      return this.currentSelection == f;
     },
     goBackDir() {
       if (this.currentDir.getPathStr() !== this.safeDir) {
@@ -107,10 +131,8 @@ export default {
         });
       });
     },
-     singleClickHandler(file){
-        this.currentSelection=file.absoluteDir
-        console.log(this.currentSelection)
-
+    singleClickHandler(file) {
+      this.currentSelection = file.absoluteDir;
     },
     doubleClickHandler(file) {
       if (file.isDirectory) {
@@ -135,14 +157,22 @@ export default {
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro");
 
 * {
+  font-family: "Source Sans Pro", sans-serif;
+
   box-sizing: border-box;
   margin: 0;
   padding: 0;
   user-select: none;
 }
-
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
 body {
-  font-family: "Source Sans Pro", sans-serif;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 #wrapper {
@@ -215,7 +245,11 @@ body {
 }
 </style>
 <style scoped>
-.file-selected{
-  background:#f7f7f7
+.file-selected {
+  background: #f7f7f7;
+}
+.el-input{
+  margin:10px;
+  font-size:16px;
 }
 </style>

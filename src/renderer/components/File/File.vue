@@ -1,5 +1,5 @@
 <template>
-    <div @dblclick="dblclickHandler" @click='clickHandler' class="file" @mouseover="iconHoverHandler" @mouseout="iconLeaveHandler">
+    <div @dblclick="dblclickHandler" @click.stop='clickHandler' class="file" @mouseover="iconHoverHandler" @mouseout="iconLeaveHandler">
       <div class="file-icon"  >
         <font-awesome-icon icon="folder" fixed-width v-if="file.isDirectory" :style="{'font-size': '50px','color':folderColor}"/>
         <font-awesome-icon :icon="['fal','file']" fixed-width v-else :style="{'font-size': '50px','color':fileColor}" />
