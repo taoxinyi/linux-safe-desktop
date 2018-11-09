@@ -9,7 +9,11 @@ class Cipher extends EventEmitter {
   encrypt(inputPath, outputPath, pass) {
     var infile = fs.createReadStream(inputPath);
     var outfile = fs.createWriteStream(outputPath);
-    var cipher = crypto.createCipher("aes256", pass);
+    let iv = crypto.pseudoRandomBytes(cipherIvSize)
+    var cipher = crypto.createCipheriv("aes-128-cbc", 'e79455fb63d9a3c7c3e68835ac920c86',iv);
+    cipher.setAutoPadding(true)
+    outfile.write(iv);
+
     var size = fs.statSync(inputPath).size;
     let that = this;
     infile
@@ -31,6 +35,8 @@ class Cipher extends EventEmitter {
     var infile = fs.createReadStream(inputPath);
     var outfile = fs.createWriteStream(outputPath);
     var cipher = crypto.createDecipher("aes256", pass);
+    cipher.setAutoPadding(true)
+
     var size = fs.statSync(inputPath).size;
     let that = this;
     infile
@@ -43,7 +49,6 @@ class Cipher extends EventEmitter {
         that.emit("decrypt-new-chunk", percentage);
       })
       .on("end", function() {
-        cipher.setAutoPadding(false)
         outfile.write(cipher.final());
         outfile.close();
         that.emit("decrypt-finished");

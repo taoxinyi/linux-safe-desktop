@@ -21,16 +21,26 @@
       </div>
        <el-dialog
         title="Decrypting file"
-        :visible.sync="centerDialogVisible"
+        :visible.sync="isDecryptionShow"
         width="500px"
         center>
     <div style="text-align:center">
-      <el-input v-model="currentPassword" :placeholder="currentOpenPath" @keyup.enter.native="passwordEnterHandler"></el-input>
+      <el-input v-model="currentPassword" :placeholder="currentOpenPath" @keyup.enter.native="passwordDecHandler"></el-input>
      <el-progress :text-inside="true" :stroke-width="25" :percentage=decryptionProgress ></el-progress>
-
     </div>
-  
 </el-dialog> 
+<el-dialog
+        title="Encrypting file"
+        :visible.sync="isEncryptionShow"
+        width="500px"
+        center>
+    <div style="text-align:center">
+      <el-input v-model="encryptFileName" ></el-input>
+      <el-input v-model="currentPassword" :placeholder="currentOpenPath" @keyup.enter.native="passwordEncHandler"></el-input>
+     <el-progress :text-inside="true" :stroke-width="25" :percentage=encryptionProgress ></el-progress>
+    </div>
+</el-dialog> 
+
       </div>
 
 </template>
@@ -79,11 +89,14 @@ export default {
       safeDir: "/home/xytao/safe/",
       currentSelection: "",
       currentDirInBar: "",
-      centerDialogVisible: false,
+      isDecryptionShow: false,
+      isEncryptionShow: false,
       decryptionProgress: 0,
+      encryptionProgress: 0,
       rightClickFile: undefined,
       currentOpenPath: undefined,
-      currentPassword: undefined
+      currentPassword: undefined,
+      encryptFileName: undefined
     };
   },
 
@@ -93,19 +106,54 @@ export default {
     }
   },
   methods: {
+    renameFile(path, prefix, extension) {
+      let path_array = path.split("/");
+      let filename = path_array[path_array.length - 1];
+      if (extension === undefined)
+        path_array[path_array.length - 1] = prefix + filename;
+      else {
+        if (filename.indexOf(".") != -1) {
+          let orig_extension = filename.split(".").pop();
+          filename = filename.slice(0, -(1 + orig_extension.length));
+        }
+        path_array[path_array.length - 1] = prefix + filename + `.${extension}`;
+      }
+      return path_array.join("/");
+    },
     encryptFileRightClick() {
+      let file = this.rightClickFile;
+      if (!file.isDirectory) {
+        this.currentPassword = undefined;
+        this.currentOpenPath = file.absoluteDir;
+        this.isEncryptionShow = true;
+        this.encryptionProgress = 0;
+        this.encryptFileName = this.renameFile(file.absoluteDir, "encrypted_");
+      }
+    },
+    passwordEncHandler() {
+      console.log(this.currentPassword);
+      let that = this;
       const cipher = new Cipher();
+      console.log(this.rightClickFile.absoluteDir);
       cipher.encrypt(
         this.rightClickFile.absoluteDir,
-        "/home/xytao/safe/eee",
-        "12345"
+        this.encryptFileName,
+        this.currentPassword
       );
+      cipher
+        .on("encrypt-new-chunk", function(per) {
+          that.encryptionProgress = parseInt(per * 100);
+        })
+        .on("encrypt-finished", function() {
+          that.filesInSafe = [];
+          that.readFromDir(that.currentDir.getPathStr());
+        });
     },
-    passwordEnterHandler() {
+    passwordDecHandler() {
       this.openFile(this.currentOpenPath);
     },
     decryptFileRightClick() {
-      this.openFile(this.rightClickFile.absoluteDir);
+      this.doubleClickHandler(this.rightClickFile);
     },
     openFileRightClick() {
       this.openFile(this.rightClickFile.absoluteDir, false);
@@ -232,7 +280,7 @@ export default {
       } else {
         this.currentPassword = undefined;
         this.currentOpenPath = file.absoluteDir;
-        this.centerDialogVisible = true;
+        this.isDecryptionShow = true;
         this.decryptionProgress = 0;
       }
     },
