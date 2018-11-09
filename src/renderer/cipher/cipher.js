@@ -1,59 +1,76 @@
-const fs = require("fs");
 const crypto = require("crypto");
+const fs = require("fs");
 const EventEmitter = require("events");
 
 class Cipher extends EventEmitter {
   constructor() {
-    super(); //must call super for "this" to be defined.
+    super();
   }
-  encrypt(inputPath, outputPath, pass) {
-    var infile = fs.createReadStream(inputPath);
-    var outfile = fs.createWriteStream(outputPath);
-    let iv = crypto.pseudoRandomBytes(cipherIvSize)
-    var cipher = crypto.createCipheriv("aes-128-cbc", 'e79455fb63d9a3c7c3e68835ac920c86',iv);
-    cipher.setAutoPadding(true)
-    outfile.write(iv);
 
-    var size = fs.statSync(inputPath).size;
+  static getKey(password) {
+    return crypto
+      .createHash("sha256")
+      .update(password)
+      .digest();
+  }
+
+  encrypt(inputFile, outputFile, password, algorithm="aes-256-cfb") {
+    const iv = crypto.randomBytes(16);
+    const key = Cipher.getKey(password);
+    const readStream = fs.createReadStream(inputFile);
+    const writeStream = fs.createWriteStream(outputFile);
+    writeStream.write(iv);
+    const size = fs.statSync(inputFile).size;
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
     let that = this;
-    infile
-      .on("data", function(data) {
-        var percentage = parseInt(infile.bytesRead) / parseInt(size);
-        var encrypted = cipher.update(data);
-        if (encrypted) {
-          outfile.write(encrypted);
+    readStream
+      .on("data", data => {
+        let b = cipher.update(data);
+        if (b.length > 0) {
+          writeStream.write(b);
+          that.emit(
+            "encrypt-new-chunk",
+            parseInt(readStream.bytesRead) / parseInt(size)
+          );
         }
-        that.emit("encrypt-new-chunk", percentage);
       })
-      .on("end", function() {
-        outfile.write(cipher.final());
-        outfile.close();
-        that.emit("encrypt-finished");
+      .on("end", () => {
+        writeStream.write(cipher.final(), function() {
+          writeStream.close();
+          that.emit("encrypt-finished");
+        });
       });
   }
-  decrypt(inputPath, outputPath, pass) {
-    var infile = fs.createReadStream(inputPath);
-    var outfile = fs.createWriteStream(outputPath);
-    var cipher = crypto.createDecipher("aes256", pass);
-    cipher.setAutoPadding(true)
 
-    var size = fs.statSync(inputPath).size;
-    let that = this;
-    infile
-      .on("data", function(data) {
-        var percentage = parseInt(infile.bytesRead) / parseInt(size);
-        var encrypted = cipher.update(data);
-        if (encrypted) {
-          outfile.write(encrypted);
-        }
-        that.emit("decrypt-new-chunk", percentage);
-      })
-      .on("end", function() {
-        outfile.write(cipher.final());
-        outfile.close();
-        that.emit("decrypt-finished");
-      });
+  decrypt(inputFile, outputFile, password, algorithm="aes-256-cfb") {
+    const ivReadStream = fs.createReadStream(inputFile, { start: 0, end: 15 });
+    ivReadStream.on("data", chunk => {
+      const iv = chunk;
+      const readStream = fs.createReadStream(inputFile, { start: 16 });
+      const writeStream = fs.createWriteStream(outputFile);
+      const key = Cipher.getKey(password);
+      const size = fs.statSync(inputFile).size;
+      const cipher = crypto.createDecipheriv(algorithm, key, iv);
+      let that = this;
+      readStream
+        .on("data", data => {
+          let b = cipher.update(data);
+          if (b.length > 0) {
+            writeStream.write(b);
+            that.emit(
+              "decrypt-new-chunk",
+              parseInt(readStream.bytesRead) / parseInt(size)
+            );
+          }
+        })
+        .on("end", () => {
+          writeStream.write(cipher.final(), function() {
+            writeStream.close();
+            that.emit("decrypt-finished");
+          });
+        });
+    });
   }
 }
 
-export default Cipher
+export default Cipher;

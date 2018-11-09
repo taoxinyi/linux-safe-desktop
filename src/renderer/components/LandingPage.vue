@@ -145,6 +145,7 @@ export default {
           that.encryptionProgress = parseInt(per * 100);
         })
         .on("encrypt-finished", function() {
+          that.encryptionProgress=100
           that.filesInSafe = [];
           that.readFromDir(that.currentDir.getPathStr());
         });
@@ -188,6 +189,7 @@ export default {
             that.decryptionProgress = parseInt(per * 100);
           })
           .on("decrypt-finished", function() {
+            that.decryptionProgress=100
             let old_stats = fs.statSync(decryped_path);
             exec(
               `xdg-mime query filetype ${decryped_path}`,
@@ -210,7 +212,12 @@ export default {
                               })
                               .on("encrypt-finished", function() {
                                 console.log("fins");
-                                fs.unlink(decryped_path);
+                                fs.unlink(decryped_path,(err)=>{
+                                  console.log(err)
+                                });
+                                fs.unlink(decryped_path+"~",(err)=>{
+                                  console.log(err)
+                                });
                               });
                           } else fs.unlink(decryped_path);
                         }
