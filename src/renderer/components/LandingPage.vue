@@ -53,6 +53,7 @@ const fs = require("fs");
 var spawn = require("child_process").spawn;
 var exec = require("child_process").exec;
 var crypto = require("crypto");
+var watch = require("node-watch");
 
 var openFile = function(path) {};
 var walk = function(dir, done) {
@@ -96,7 +97,8 @@ export default {
       rightClickFile: undefined,
       currentOpenPath: undefined,
       currentPassword: undefined,
-      encryptFileName: undefined
+      encryptFileName: undefined,
+      passwordMap:{}
     };
   },
 
@@ -145,12 +147,13 @@ export default {
           that.encryptionProgress = parseInt(per * 100);
         })
         .on("encrypt-finished", function() {
-          that.encryptionProgress=100
+          that.encryptionProgress = 100;
           that.filesInSafe = [];
           that.readFromDir(that.currentDir.getPathStr());
         });
     },
     passwordDecHandler() {
+      this.passwordMap[this.currentOpenPath]=this.currentPassword;
       this.openFile(this.currentOpenPath);
     },
     decryptFileRightClick() {
@@ -189,7 +192,7 @@ export default {
             that.decryptionProgress = parseInt(per * 100);
           })
           .on("decrypt-finished", function() {
-            that.decryptionProgress=100
+            that.decryptionProgress = 100;
             let old_stats = fs.statSync(decryped_path);
             exec(
               `xdg-mime query filetype ${decryped_path}`,
@@ -212,11 +215,11 @@ export default {
                               })
                               .on("encrypt-finished", function() {
                                 console.log("fins");
-                                fs.unlink(decryped_path,(err)=>{
-                                  console.log(err)
+                                fs.unlink(decryped_path, err => {
+                                  console.log(err);
                                 });
-                                fs.unlink(decryped_path+"~",(err)=>{
-                                  console.log(err)
+                                fs.unlink(decryped_path + "~", err => {
+                                  console.log(err);
                                 });
                               });
                           } else fs.unlink(decryped_path);
@@ -297,6 +300,14 @@ export default {
   },
   created() {
     this.readFromDir(this.safeDir);
+    watch(this.safeDir, { recursive: true }, (event,filename)=> {
+      if (event==="update")
+        fs.stat(filename,(err,stat)=>{
+          if (!err && stat.isFile()){
+            //ENCRYPT
+          }
+        })
+    });
   }
 };
 </script>
