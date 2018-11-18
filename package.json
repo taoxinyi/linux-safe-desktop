@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "author": "Xinyi Tao <850804004@qq.com>",
   "description": "An electron-vue project",
-  "license": null,
+  "license": "ISC",
   "main": "./dist/electron/main.js",
   "scripts": {
     "build": "node .electron-vue/build.js && electron-builder",
@@ -105,5 +105,13 @@
     "webpack-dev-server": "^3.1.4",
     "webpack-hot-middleware": "^2.22.2",
     "webpack-merge": "^4.1.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taoxinyi/linux-safe-desktop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/taoxinyi/linux-safe-desktop/issues"
+  },
+  "homepage": "https://github.com/taoxinyi/linux-safe-desktop#readme"
 }
