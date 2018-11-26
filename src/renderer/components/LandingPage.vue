@@ -1,66 +1,85 @@
 <template>
-    <div @click="away" style="height:100%;display:flex;flex-direction: column">
-        <div class="title">
-            Safe Box
+  <div style="height:100%">
+    <div @click="away" style="height:100%;display:flex;flex-direction: column" v-if="!isAuthPassed">
+      <div class="title">Safe Box</div>
+      <div style="display:flex;flex-direction: column;height:100%">
+        <div style="display:flex;align-items:center;margin:0 10px">
+          <font-awesome-icon icon="arrow-up" fixed-width @click="goBackDir"></font-awesome-icon>
+          <el-input
+            v-model="currentDirInBar"
+            :value="currentDirStr"
+            placeholder="请输入内容"
+            @keyup.enter.native="pathEnterHandler"
+          ></el-input>
         </div>
-        <div style="display:flex;flex-direction: column;height:100%">
-           <div style="display:flex;align-items:center;margin:0 10px">
-            <font-awesome-icon icon="arrow-up" fixed-width @click="goBackDir"></font-awesome-icon>
-            <el-input v-model="currentDirInBar" :value="currentDirStr" placeholder="请输入内容"
-                      @keyup.enter.native="pathEnterHandler"></el-input>
-          </div>
 
-          <div style="display:flex;flex-wrap:wrap" v-contextmenu:contextmenu1 >
-            <div v-for="file in filesInSafe" :key="file.absoluteDir"
-                 :class="{'file-selected': isActive(file.absoluteDir)}" style="flex-grow:0">
-                <File :file="file" @doubleClick="doubleClickHandler" @singleClick="singleClickHandler"
-                   v-contextmenu:contextmenu  >
-                </File>
-            </div>
+        <div style="display:flex;flex-wrap:wrap" v-contextmenu:contextmenu1>
+          <div
+            v-for="file in filesInSafe"
+            :key="file.absoluteDir"
+            :class="{'file-selected': isActive(file.absoluteDir)}"
+            style="flex-grow:0"
+          >
+            <File
+              :file="file"
+              @doubleClick="doubleClickHandler"
+              @singleClick="singleClickHandler"
+              v-contextmenu:contextmenu
+            ></File>
           </div>
-          <div style="flex-grow:1" v-contextmenu:contextmenu1></div>
-          <v-contextmenu ref="contextmenu" @contextmenu="handleContextmenu" @hide="hideContextmenu">
-                <v-contextmenu-item @click="decryptFileRightClick">Decrypt&Open</v-contextmenu-item>
-                <v-contextmenu-item @click="openFileRightClick">Open</v-contextmenu-item>
-                <v-contextmenu-item @click="encryptFileRightClick">Encrypt</v-contextmenu-item>
-                <v-contextmenu-item @click="deleteFileRightClick">Delete</v-contextmenu-item>
-            </v-contextmenu>
-            <v-contextmenu ref="contextmenu1" @contextmenu="handleContextmenu2" :disabled="isParentRightClickHide">
-                <v-contextmenu-item @click="pasteFiletoDir">Paste</v-contextmenu-item>
-                <v-contextmenu-item @click="openFileRightClick">New</v-contextmenu-item>
-            </v-contextmenu>
         </div>
-       
-        <el-dialog
-                title="Decrypting file"
-                :visible.sync="isDecryptionShow"
-                width="500px"
-                center>
-            <div style="text-align:center">
-                <el-input v-model="currentPassword" :placeholder="currentOpenPath"
-                          @keyup.enter.native="passwordDecHandler"></el-input>
-                <el-progress :text-inside="true" :stroke-width="25" :percentage=decryptionProgress></el-progress>
-            </div>
-        </el-dialog>
-        <el-dialog
-                title="Encrypting file"
-                :visible.sync="isEncryptionShow"
-                width="500px"
-                center>
-            <div style="text-align:center">
-                <el-input v-model="encryptFileName"></el-input>
-                <el-input v-model="currentPassword" :placeholder="currentOpenPath"
-                          @keyup.enter.native="passwordEncHandler"></el-input>
-                <el-progress :text-inside="true" :stroke-width="25" :percentage=encryptionProgress></el-progress>
-            </div>
-        </el-dialog>
+        <div style="flex-grow:1" v-contextmenu:contextmenu1></div>
+        <v-contextmenu ref="contextmenu" @contextmenu="handleContextmenu" @hide="hideContextmenu">
+          <v-contextmenu-item @click="decryptFileRightClick">Decrypt&Open</v-contextmenu-item>
+          <v-contextmenu-item @click="openFileRightClick">Open</v-contextmenu-item>
+          <v-contextmenu-item @click="encryptFileRightClick">Encrypt</v-contextmenu-item>
+          <v-contextmenu-item @click="deleteFileRightClick">Delete</v-contextmenu-item>
+        </v-contextmenu>
+        <v-contextmenu
+          ref="contextmenu1"
+          @contextmenu="handleContextmenu2"
+          :disabled="isParentRightClickHide"
+        >
+          <v-contextmenu-item @click="pasteFiletoDir">Paste</v-contextmenu-item>
+          <v-contextmenu-submenu  title="New">
+            <v-contextmenu-item @click="newFileRightClick">File</v-contextmenu-item>
+            <v-contextmenu-item @click="newFolderRightClick">Folder</v-contextmenu-item>
 
+          
+          </v-contextmenu-submenu>
+        </v-contextmenu>
+      </div>
+
+      <el-dialog title="Decrypting file" :visible.sync="isDecryptionShow" width="500px" center>
+        <div style="text-align:center">
+          <el-input
+            v-model="currentPassword"
+            :placeholder="currentOpenPath"
+            @keyup.enter.native="passwordDecHandler"
+          ></el-input>
+          <el-progress :text-inside="true" :stroke-width="25" :percentage="decryptionProgress"></el-progress>
+        </div>
+      </el-dialog>
+      <el-dialog title="Encrypting file" :visible.sync="isEncryptionShow" width="500px" center>
+        <div style="text-align:center">
+          <el-input v-model="encryptFileName"></el-input>
+          <el-input
+            v-model="currentPassword"
+            :placeholder="currentOpenPath"
+            @keyup.enter.native="passwordEncHandler"
+          ></el-input>
+          <el-progress :text-inside="true" :stroke-width="25" :percentage="encryptionProgress"></el-progress>
+        </div>
+      </el-dialog>
     </div>
-
+    <Auth v-if="isAuthPassed" @authSucceed="authSucceed"></Auth>
+  </div>
 </template>
 
 <script>
 import File from "./File/File";
+import Auth from "./Auth/Auth";
+
 import Path from "../path/path.js";
 import Cipher from "../cipher/cipher.js";
 const { clipboard } = require("electron");
@@ -96,10 +115,11 @@ var walk = function(dir, done) {
 };
 export default {
   name: "landing-page",
-  components: { File },
+  components: { File,Auth },
 
   data() {
     return {
+      isAuthPassed:false,
       filesInSafe: [],
       currentDir: new Path(["home", "xytao", "safe"]),
       safeDir: "",
@@ -125,13 +145,22 @@ export default {
     }
   },
   methods: {
+    newFileRightClick(){
+
+    },
+    newFolderRightClick(){
+
+    },
+    authSucceed(){
+      this.isAuthPassed=true
+    },
     pasteFiletoDir() {
       let path = clipboard.readText();
       fs.stat(path, (err, status) => {
         if (err) console.log(err);
         else {
+          let that = this;
           if (status.isDirectory()) {
-            let that = this;
             spawn(`cp`, ["-R", path, that.currentDir.getPathStr()]).on(
               "exit",
               e => {
@@ -141,6 +170,13 @@ export default {
                 }
               }
             );
+          } else {
+            spawn(`cp`, [path, that.currentDir.getPathStr()]).on("exit", e => {
+              if (e === 0) {
+                that.filesInSafe = [];
+                that.readFromDir(that.currentDir.getPathStr());
+              }
+            });
           }
         }
       });
