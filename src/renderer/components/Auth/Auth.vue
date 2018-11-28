@@ -30,33 +30,34 @@ export default {
     };
   },
   methods: {
-    submitForm(){
-        if (this.form.path!==""&&this.form.pass!==""){
-            spawn("netlink-client", [this.form.path,this.form.pass]).on("exit", e => {
-              if(e==0){
-                this.$emit("authSucceed")
-              }
-            });
-
-        }
-
+    submitForm() {
+      if (this.form.path !== "" && this.form.pass !== "") {
+        spawn("netlink-client", [this.form.path, this.form.pass]).on(
+          "exit",
+          e => {
+            console.log(e);
+            if (e == 0) {
+              this.$emit("authSucceed");
+            }
+          }
+        );
+      }
     }
   }
 };
 </script>
 
 <style scoped>
-.auth{
-  margin:2rem;
+.auth {
+  padding: 2rem;
 }
-
 </style>
 
 <style>
-.auth .el-form-item__label{
-  font-size: 1.2rem
+.auth .el-form-item__label {
+  font-size: 1.2rem;
 }
 .auth .el-input__inner {
-  font-size: 1.2rem
-} 
+  font-size: 1.2rem;
+}
 </style>

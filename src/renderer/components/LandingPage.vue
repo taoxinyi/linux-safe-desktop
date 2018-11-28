@@ -1,6 +1,6 @@
 <template>
   <div style="height:100%">
-    <div @click="away" style="height:100%;display:flex;flex-direction: column" v-if="!isAuthPassed">
+    <div @click="away" style="height:100%;display:flex;flex-direction: column" v-if="isAuthPassed">
       <div class="title">Safe Box</div>
       <div style="display:flex;flex-direction: column;height:100%">
         <div style="display:flex;align-items:center;margin:0 10px">
@@ -41,12 +41,9 @@
           :disabled="isParentRightClickHide"
         >
           <v-contextmenu-item @click="pasteFiletoDir">Paste</v-contextmenu-item>
-          <v-contextmenu-submenu  title="New">
-            <v-contextmenu-item @click="newFileRightClick">File</v-contextmenu-item>
-            <v-contextmenu-item @click="newFolderRightClick">Folder</v-contextmenu-item>
+          <v-contextmenu-item @click="openTerminalRightClick">Open terminal here</v-contextmenu-item>
+          <v-contextmenu-item @click="refreshRightClick">Refresh</v-contextmenu-item>
 
-          
-          </v-contextmenu-submenu>
         </v-contextmenu>
       </div>
 
@@ -72,7 +69,7 @@
         </div>
       </el-dialog>
     </div>
-    <Auth v-if="isAuthPassed" @authSucceed="authSucceed"></Auth>
+    <Auth v-if="!isAuthPassed" @authSucceed="authSucceed" style="height:100%;display:flex;flex-direction: column"></Auth>
   </div>
 </template>
 
@@ -145,12 +142,15 @@ export default {
     }
   },
   methods: {
-    newFileRightClick(){
-
+    openTerminalRightClick(){
+      console.log(this.currentDir.getPathStr())
+      spawn("gnome-terminal",["--disable-factory",`--working-directory=`+this.currentDir.getPathStr()])
     },
-    newFolderRightClick(){
-
+    refreshRightClick(){
+        this.filesInSafe = [];
+        this.readFromDir(this.currentDir.getPathStr());
     },
+
     authSucceed(){
       this.isAuthPassed=true
     },
@@ -375,9 +375,6 @@ export default {
     }
   },
   created() {
-    spawn("hello", ["111"]).on("exit", e => {
-      console.log("exited", e);
-    });
     const cipher = new Cipher();
 
     Cipher.decryptToMemory("config.json", "test", "aes-256-cfb", decrypted => {
