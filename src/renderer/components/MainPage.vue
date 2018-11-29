@@ -8,7 +8,7 @@
           <el-input
             v-model="currentDirInBar"
             :value="currentDirStr"
-            placeholder="请输入内容"
+            placeholder="Please enter path"
             @keyup.enter.native="pathEnterHandler"
           ></el-input>
         </div>
@@ -33,6 +33,7 @@
           <v-contextmenu-item @click="decryptFileRightClick">Decrypt&Open</v-contextmenu-item>
           <v-contextmenu-item @click="openFileRightClick">Open</v-contextmenu-item>
           <v-contextmenu-item @click="encryptFileRightClick">Encrypt</v-contextmenu-item>
+          <v-contextmenu-item @click="renameRightClick">Rename</v-contextmenu-item>
           <v-contextmenu-item @click="deleteFileRightClick">Delete</v-contextmenu-item>
         </v-contextmenu>
         <v-contextmenu
@@ -43,7 +44,6 @@
           <v-contextmenu-item @click="pasteFiletoDir">Paste</v-contextmenu-item>
           <v-contextmenu-item @click="openTerminalRightClick">Open terminal here</v-contextmenu-item>
           <v-contextmenu-item @click="refreshRightClick">Refresh</v-contextmenu-item>
-
         </v-contextmenu>
       </div>
 
@@ -68,8 +68,17 @@
           <el-progress :text-inside="true" :stroke-width="25" :percentage="encryptionProgress"></el-progress>
         </div>
       </el-dialog>
+      <el-dialog title="Rename" :visible.sync="isRenameShow" width="500px" center>
+        <div style="text-align:center">
+          <el-input v-model="renameFilename" @keyup.enter.native="renameHandler"></el-input>
+        </div>
+      </el-dialog>
     </div>
-    <Auth v-if="!isAuthPassed" @authSucceed="authSucceed" style="height:100%;display:flex;flex-direction: column"></Auth>
+    <Auth
+      v-if="!isAuthPassed"
+      @authSucceed="authSucceed"
+      style="height:100%;display:flex;flex-direction: column"
+    ></Auth>
   </div>
 </template>
 
@@ -86,50 +95,28 @@ var exec = require("child_process").exec;
 var crypto = require("crypto");
 var watch = require("node-watch");
 
-var openFile = function(path) {};
-var walk = function(dir, done) {
-  var results = [];
-  fs.readdir(dir, function(err, list) {
-    if (err) return done(err);
-    var i = 0;
-    (function next() {
-      var file = list[i++];
-      if (!file) return done(null, results);
-      file = dir + "/" + file;
-      fs.stat(file, function(err, stat) {
-        if (stat && stat.isDirectory()) {
-          walk(file, function(err, res) {
-            results = results.concat(res);
-            next();
-          });
-        } else {
-          results.push(file);
-          next();
-        }
-      });
-    })();
-  });
-};
 export default {
-  name: "landing-page",
-  components: { File,Auth },
+  name: "MainPage",
+  components: { File, Auth },
 
   data() {
     return {
-      isAuthPassed:false,
+      isAuthPassed: false,
       filesInSafe: [],
       currentDir: new Path(["home", "xytao", "safe"]),
-      safeDir: "",
-      currentSelection: "",
-      currentDirInBar: "",
+      safeDir: "", //the path of top safe dir
+      currentSelection: "", //current left click selection
+      currentDirInBar: "", //current path in path bar
       isDecryptionShow: false,
       isEncryptionShow: false,
+      isRenameShow: false,
       decryptionProgress: 0,
       encryptionProgress: 0,
-      rightClickFile: undefined,
-      currentOpenPath: undefined,
-      currentPassword: undefined,
-      encryptFileName: undefined,
+      rightClickFile: undefined, //current right click file object
+      currentOpenPath: undefined, //current open path for open
+      currentPassword: undefined, //current password for enc&dec
+      encryptFileName: undefined, //name for encrypted file
+      renameFilename: "", //name for renamed file
       passwordMap: {},
       config: {},
       isParentRightClickHide: false
@@ -142,18 +129,7 @@ export default {
     }
   },
   methods: {
-    openTerminalRightClick(){
-      console.log(this.currentDir.getPathStr())
-      spawn("gnome-terminal",["--disable-factory",`--working-directory=`+this.currentDir.getPathStr()])
-    },
-    refreshRightClick(){
-        this.filesInSafe = [];
-        this.readFromDir(this.currentDir.getPathStr());
-    },
-
-    authSucceed(){
-      this.isAuthPassed=true
-    },
+    //right click on remaining space, paste, open terminal and refresh
     pasteFiletoDir() {
       let path = clipboard.readText();
       fs.stat(path, (err, status) => {
@@ -181,7 +157,42 @@ export default {
         }
       });
     },
-    renameFile(path, prefix, extension) {
+    openTerminalRightClick() {
+      console.log(this.currentDir.getPathStr());
+      spawn("gnome-terminal", [
+        "--disable-factory",
+        `--working-directory=` + this.currentDir.getPathStr()
+      ]);
+    },
+    refreshRightClick() {
+      this.filesInSafe = [];
+      this.readFromDir(this.currentDir.getPathStr());
+    },
+    //auth and init keyshortcut
+    initKeyShortCut() {
+      window.addEventListener("keydown", e => {
+        var evt = window.event ? event : e;
+        if (evt.ctrlKey && evt.keyCode !== 17) {
+          if (evt.key === "c") {
+            if (this.currentSelection !== "")
+              this.copyPathToClipboard(this.currentSelection);
+          } else if (evt.key === "v") {
+            this.pasteFiletoDir();
+          }
+        }
+      });
+    },
+    authSucceed(dir) {
+      this.isAuthPassed = true;
+      this.safeDir = dir;
+      this.readFromDir(dir);
+      this.initKeyShortCut();
+    },
+    copyPathToClipboard(path) {
+      clipboard.writeText(path);
+    },
+
+    renamePath(path, prefix, extension) {
       let path_array = path.split("/");
       let filename = path_array[path_array.length - 1];
       if (extension === undefined)
@@ -195,6 +206,11 @@ export default {
       }
       return path_array.join("/");
     },
+    //right click on file & directory space, open, decrypt, encrypt, rename, delete
+
+    openFileRightClick() {
+      this.openFile(this.rightClickFile.absoluteDir, false);
+    },
     encryptFileRightClick() {
       let file = this.rightClickFile;
       if (!file.isDirectory) {
@@ -202,8 +218,15 @@ export default {
         this.currentOpenPath = file.absoluteDir;
         this.isEncryptionShow = true;
         this.encryptionProgress = 0;
-        this.encryptFileName = this.renameFile(file.absoluteDir, "encrypted_");
+        this.encryptFileName = this.renamePath(file.absoluteDir, "encrypted_");
       }
+    },
+    decryptFileRightClick() {
+      this.doubleClickHandler(this.rightClickFile);
+    },
+    renameRightClick() {
+      this.renameFilename = this.rightClickFile.name;
+      this.isRenameShow = true;
     },
     deleteFileRightClick() {
       console.log(this.rightClickFile);
@@ -215,6 +238,7 @@ export default {
         }
       });
     },
+    //handler for dialog press enter, encrypt, decrypt, rename
     passwordEncHandler() {
       console.log(this.currentPassword);
       let that = this;
@@ -231,6 +255,7 @@ export default {
         })
         .on("encrypt-finished", function() {
           that.encryptionProgress = 100;
+          that.isEncryptionShow = false;
           that.filesInSafe = [];
           that.readFromDir(that.currentDir.getPathStr());
         });
@@ -238,13 +263,22 @@ export default {
     passwordDecHandler() {
       this.passwordMap[this.currentOpenPath] = this.currentPassword;
       this.openFile(this.currentOpenPath);
+      this.isDecryptionShow = false;
     },
-    decryptFileRightClick() {
-      this.doubleClickHandler(this.rightClickFile);
+
+    renameHandler() {
+      this.isRenameShow = false;
+      let oldname = this.rightClickFile.absoluteDir;
+      let newname = this.rightClickFile.dir + this.renameFilename;
+      let that = this;
+      spawn("mv", [oldname, newname]).on("exit", e => {
+        if (e === 0) {
+          that.filesInSafe = [];
+          that.readFromDir(that.currentDir.getPathStr());
+        }
+      });
     },
-    openFileRightClick() {
-      this.openFile(this.rightClickFile.absoluteDir, false);
-    },
+
     hideContextmenu() {
       this.isParentRightClickHide = false;
     },
@@ -340,17 +374,36 @@ export default {
       }
     },
     readFromDir(absoluteDir) {
-      fs.readdir(absoluteDir, (eff, files) => {
-        files.forEach(async filename => {
+      let directorys = [];
+      let files = [];
+      fs.readdir(absoluteDir, (eff, filenames) => {
+        let total = filenames.length;
+        let count = 0;
+        filenames.forEach(async filename => {
           let fileAbsolute = absoluteDir + filename;
           fs.stat(fileAbsolute, (err, stat) => {
-            this.filesInSafe.push({
-              safeDir: this.safeDir,
-              absoluteDir: fileAbsolute,
-              name: filename,
-              stat: stat,
-              isDirectory: stat.isDirectory()
-            });
+            if (stat.isDirectory())
+              directorys.push({
+                safeDir: this.safeDir,
+                dir: absoluteDir,
+                absoluteDir: fileAbsolute,
+                name: filename,
+                stat: stat,
+                isDirectory: true
+              });
+            else
+              files.push({
+                safeDir: this.safeDir,
+                dir: absoluteDir,
+                absoluteDir: fileAbsolute,
+                name: filename,
+                stat: stat,
+                isDirectory: false
+              });
+            count++;
+            if (count == total) {
+              this.filesInSafe = directorys.concat(files);
+            }
           });
         });
       });
@@ -373,29 +426,6 @@ export default {
     open(link) {
       this.$electron.shell.openExternal(link);
     }
-  },
-  created() {
-    const cipher = new Cipher();
-
-    Cipher.decryptToMemory("config.json", "test", "aes-256-cfb", decrypted => {
-      try {
-        this.config = JSON.parse(decrypted);
-        this.safeDir = this.config.safeDir;
-        console.log(this.config.passphrase);
-        this.readFromDir(this.safeDir);
-        watch(this.safeDir, { recursive: true }, (event, filename) => {
-          if (event === "update")
-            fs.stat(filename, (err, stat) => {
-              if (!err && stat.isFile()) {
-                //ENCRYPT
-              }
-            });
-        });
-      } catch (e) {
-        console.log(e);
-        //wrong passphrase
-      }
-    });
   }
 };
 </script>
@@ -403,8 +433,7 @@ export default {
 <style>
 @font-face {
   font-family: "Source Sans Pro";
-  src: url("/src/renderer/assets/fonts/SourceSansPro-Regular.ttf.woff2")
-    format("woff2");
+  src: url("../assets/fonts/SourceSansPro-Regular.ttf.woff2") format("woff2");
 }
 
 * {

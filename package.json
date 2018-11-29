@@ -1,8 +1,8 @@
 {
-  "name": "linux-safe-desktop",
-  "version": "0.0.1",
+  "name": "safebox",
+  "version": "1.0.0",
   "author": "Xinyi Tao <850804004@qq.com>",
-  "description": "An electron-vue project",
+  "description": "The desktop client for linux safe module.",
   "license": "ISC",
   "main": "./dist/electron/main.js",
   "scripts": {
@@ -17,8 +17,8 @@
     "postinstall": ""
   },
   "build": {
-    "productName": "linux-safe-desktop",
-    "appId": "com.example.yourapp",
+    "productName": "safebox",
+    "appId": "com.xytao.safebox",
     "directories": {
       "output": "build"
     },
