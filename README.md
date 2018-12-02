@@ -1,22 +1,23 @@
 # linux-safe-desktop
+<img src="https://img.shields.io/github/release/taoxinyi/linux-safe-desktop.svg"/>
 
-> An electron-vue project
+The GUI desktop client for [linux-safe-module](https://github.com/taoxinyi/linux-safe-module).
 
-#### Build Setup
+Written by electron and tested on Ubuntu 14.04 and Ubuntu 16.04.
 
+
+![demo](/img/demo.png "demo")
+
+## Install
+Please go to the [Release](https://github.com/taoxinyi/linux-safe-desktop/releases) Page or build from source from the repo on your own.
 ``` bash
-# install dependencies
 npm install
-
-# serve with hot reload at localhost:9080
-npm run dev
-
-# build electron application for production
 npm run build
-
-
+apt-get -f install
 ```
-
----
-
-This project was generated with [electron-vue](https://github.com/SimulatedGREG/electron-vue) using [vue-cli](https://github.com/vuejs/vue-cli). Documentation about the original structure can be found [here](https://simulatedgreg.gitbooks.io/electron-vue/content/index.html).
+## Support functionalities
+- Open terminal at current directory
+- Paste file/directory from clipboard
+- AES Encryption && Decryption
+- Rename
+- Refresh
