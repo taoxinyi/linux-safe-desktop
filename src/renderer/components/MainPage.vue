@@ -292,11 +292,22 @@ export default {
     openFileWithDefault(path, callback) {
       exec(`xdg-mime query filetype ${path}`, (error, fileType) => {
         exec(`xdg-mime query default ${fileType}`, (error, app) => {
-          console.log(app);
-          if (app.endsWith(".desktop\n"))
-            spawn(`${app.slice(0, -9)}`, [path]).on("exit", () => {
-              if (callback) callback();
-            });
+          fs.readFile(
+            `/usr/share/applications/${app.slice(0, -1)}`,
+            "utf8",
+            (err, f) => {
+              let r = /\nExec=(.*)\n/;
+              let exec = r
+                .exec(f)
+                ["1"].replace("%U", path)
+                .split(" ");
+              let bin = exec[0];
+              let param = exec.slice(1);
+              spawn(`${bin}`, param).on("exit", () => {
+                if (callback) callback();
+              });
+            }
+          );
         });
       });
     },
@@ -381,8 +392,11 @@ export default {
         let count = 0;
         filenames.forEach(async filename => {
           let fileAbsolute = absoluteDir + filename;
+          console.log("111", fileAbsolute);
           fs.stat(fileAbsolute, (err, stat) => {
-            if (stat.isDirectory())
+            console.log(fileAbsolute, stat);
+
+            if (stat !== undefined && stat.isDirectory())
               directorys.push({
                 safeDir: this.safeDir,
                 dir: absoluteDir,
@@ -391,7 +405,7 @@ export default {
                 stat: stat,
                 isDirectory: true
               });
-            else
+            else if (stat !== undefined && stat.isFile())
               files.push({
                 safeDir: this.safeDir,
                 dir: absoluteDir,
